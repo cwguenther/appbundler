@@ -36,6 +36,7 @@ import org.apache.tools.ant.taskdefs.ExecTask;
  */
 public class JLink {
     private String runtime = null;
+    private String executable = null;
     private ArrayList<String> jmods = new ArrayList<>();
     private ArrayList<String> arguments = new ArrayList<>();
     private ExecTask exec = new ExecTask();
@@ -50,6 +51,14 @@ public class JLink {
 
     public void setRuntime(String runtime) {
         this.runtime = runtime;
+    }
+
+    public String getExecutable() {
+        return executable;
+    }
+
+    public void setExecutable(String executable) {
+        this.executable = executable;
     }
 
     public void setTask(AppBundlerTask task) {
@@ -107,7 +116,6 @@ public class JLink {
         File runtimeMacOSDirectory = new File(runtimeContentsDirectory, "MacOS");
         AppBundlerTask.copy(runtimeMacOSDirectory, new File(pluginContentsDirectory, runtimeMacOSDirectory.getName()));
 
-
         // Copy Info.plist file
         File runtimeInfoPlistFile = new File(runtimeContentsDirectory, "Info.plist");
         AppBundlerTask.copy(runtimeInfoPlistFile, new File(pluginContentsDirectory, runtimeInfoPlistFile.getName()));
@@ -115,7 +123,12 @@ public class JLink {
         // Copy included contents of Home directory
         File pluginHomeDirectory = new File(pluginContentsDirectory, runtimeHomeDirectory.getName());
 
-        exec.setExecutable(runtimeHomeDirectory.getAbsolutePath() + "/bin/jlink");
+        // Use custom jlink executable if provided
+        if(this.executable != null) {
+            exec.setExecutable(this.executable);
+        } else {
+            exec.setExecutable(runtimeHomeDirectory.getAbsolutePath() + "/bin/jlink");
+        }
         exec.setFailIfExecutionFails(true);
         exec.setFailonerror(true);
         for(String s : this.arguments) {
@@ -125,6 +138,11 @@ public class JLink {
         exec.createArg().setValue("--no-man-pages");
         exec.createArg().setValue("--no-header-files");
         exec.createArg().setValue("--strip-native-commands");    /* no bin directory */
+        if(this.executable != null) {
+            // Make sure to use provided runtime instead of that of custom jlink executable
+            exec.createArg().setValue("--module-path");
+            exec.createArg().setValue(runtimeHomeDirectory.getAbsolutePath() + "/jmods");
+        }
         exec.createArg().setValue("--add-modules");
         exec.createArg().setValue(String.join(",", jmods));
         exec.createArg().setValue("--output");
